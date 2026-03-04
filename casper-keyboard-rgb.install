@@ -1,0 +1,29 @@
+post_install() {
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║  Casper Keyboard RGB – Kurulum tamamlandı!              ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║                                                        ║"
+    echo "║  Ön koşul:                                             ║"
+    echo "║    casper-wmi kernel modülü yüklü olmalıdır.           ║"
+    echo "║    https://github.com/Mustafa-eksi/casper-wmi          ║"
+    echo "║                                                        ║"
+    echo "║  Kullanım:                                             ║"
+    echo "║    casper-keyboard-rgb        → GUI başlat             ║"
+    echo "║    casper-keyboard-rgb -h     → Yardım                 ║"
+    echo "║                                                        ║"
+    echo "║  Açılışta renk geri yükleme:                           ║"
+    echo "║    sudo systemctl enable casper-keyboard-rgb-restore   ║"
+    echo "║                                                        ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+}
+
+post_upgrade() {
+    post_install
+}
+
+post_remove() {
+    echo "Kullanıcı ayarları korundu: ~/.config/casper-keyboard-rgb/"
+    echo "Silmek için: rm -rf ~/.config/casper-keyboard-rgb/"
+}

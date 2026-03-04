@@ -1,0 +1,58 @@
+#!/bin/bash
+# ──────────────────────────────────────────────────────────────
+# led-write-helper – Privilege-separated LED write helper
+#
+# This script is called via pkexec and is the ONLY component
+# that runs as root.  It enforces strict input validation so
+# that even a compromised GUI process cannot write arbitrary
+# data to arbitrary files.
+#
+# Installed to: /usr/lib/casper-keyboard-rgb/led-write-helper
+# Owner: root:root  Permissions: 0755
+# ──────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+readonly LED_CONTROL="/sys/class/leds/casper::kbd_backlight/led_control"
+
+# ── Validate arguments ───────────────────────────────────────
+
+if [[ $# -ne 1 ]]; then
+    echo "Kullanım: $0 <komut>" >&2
+    echo "Örnek:  $0 602FF0000" >&2
+    exit 1
+fi
+
+readonly COMMAND="$1"
+
+# Strict regex: zone(3-6) + brightness(00-02) + RRGGBB
+if [[ ! "$COMMAND" =~ ^[3-6]0[0-2][0-9A-Fa-f]{6}$ ]]; then
+    echo "Hata: Geçersiz komut formatı: '$COMMAND'" >&2
+    echo "Beklenen: <zone:3-6><brightness:00-02><RRGGBB>" >&2
+    exit 2
+fi
+
+# ── Validate target path ────────────────────────────────────
+
+# Resolve symlinks and ensure we are still inside /sys/
+RESOLVED=$(readlink -f "$LED_CONTROL" 2>/dev/null || true)
+
+if [[ -z "$RESOLVED" ]]; then
+    echo "Hata: LED kontrol dosyası çözümlenemedi: $LED_CONTROL" >&2
+    exit 3
+fi
+
+if [[ "$RESOLVED" != /sys/* ]]; then
+    echo "Hata: Çözümlenen yol /sys/ dışında: $RESOLVED" >&2
+    exit 4
+fi
+
+if [[ ! -e "$RESOLVED" ]]; then
+    echo "Hata: LED kontrol dosyası bulunamadı: $RESOLVED" >&2
+    echo "casper-wmi modülü yüklü mü?" >&2
+    exit 5
+fi
+
+# ── Write ────────────────────────────────────────────────────
+
+printf '%s' "$COMMAND" > "$LED_CONTROL"
