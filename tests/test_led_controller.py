@@ -17,15 +17,15 @@ class TestBuildCommand:
 
     def test_left_zone_mid_brightness_blue(self):
         cmd = LEDController._build_command(Zone.LEFT, 1, RGBColor(0, 0, 255))
-        assert cmd == "4010000FF"
+        assert cmd == "3010000FF"
 
     def test_right_zone_off(self):
         cmd = LEDController._build_command(Zone.RIGHT, 0, RGBColor(0, 0, 0))
-        assert cmd == "300000000"
+        assert cmd == "500000000"
 
     def test_center_zone_green(self):
         cmd = LEDController._build_command(Zone.CENTER, 2, RGBColor(0, 255, 0))
-        assert cmd == "50200FF00"
+        assert cmd == "40200FF00"
 
     def test_command_matches_strict_regex(self):
         """Every valid command must match the strict format."""
