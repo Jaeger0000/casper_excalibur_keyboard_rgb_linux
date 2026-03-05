@@ -99,7 +99,7 @@ class ProfileManager:
         """Return all saved profiles."""
         data = self._read()
         out: dict[str, Profile] = {}
-        for name, raw in data.get("profiles", {}).items():
+        for name, raw in (data.get("profiles") or {}).items():
             try:
                 out[name] = Profile(**raw)
             except (TypeError, ValueError) as exc:
@@ -139,7 +139,7 @@ class ProfileManager:
         """Return the last-applied profile, or None."""
         data = self._read()
         last = data.get("last_used")
-        if last and last in data.get("profiles", {}):
+        if last and last in (data.get("profiles") or {}):
             try:
                 return Profile(**data["profiles"][last])
             except (TypeError, ValueError):
