@@ -332,6 +332,10 @@ static int casper_wmi_hwmon_write(struct device *dev, enum hwmon_sensor_types ty
 	case hwmon_pwm:
 		if (channel != 0)
 			return -EOPNOTSUPP;
+
+		if (val < HIGH_POWER || val > LOW_POWER)
+			return -EINVAL;
+
 		ret = casper_set(CASPER_POWERPLAN, val, 0);
 		printk("Writing started: %ld", val);
 		if (ACPI_FAILURE(ret)) {
