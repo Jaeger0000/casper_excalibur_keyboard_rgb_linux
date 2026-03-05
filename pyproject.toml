@@ -14,14 +14,14 @@ dependencies = [
 ]
 
 [project.scripts]
-casper-keyboard-rgb = "src.main:main"
+casper-keyboard-rgb = "casper_keyboard_rgb.main:main"
 
 [project.urls]
 Homepage = "https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux"
 Issues = "https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/issues"
 
 [tool.setuptools.packages.find]
-include = ["src*"]
+include = ["casper_keyboard_rgb*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

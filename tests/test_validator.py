@@ -2,8 +2,8 @@
 
 import pytest
 
-from src.core.config import RGBColor
-from src.utils.validator import (
+from casper_keyboard_rgb.core.config import RGBColor
+from casper_keyboard_rgb.utils.validator import (
     validate_brightness,
     validate_color_hex,
     validate_profile_name,

@@ -72,7 +72,7 @@ driver/
 ├── Makefile                   # Kernel build dosyası
 └── dkms.conf                  # DKMS yapılandırması
 
-src/
+casper_keyboard_rgb/
 ├── main.py                    # Entry point (GUI + --restore CLI)
 ├── core/
 │   ├── config.py              # Sabitler, RGBColor, doğrulama

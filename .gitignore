@@ -28,7 +28,6 @@ htmlcov/
 
 # AUR build artifacts
 pkg/
-src/
 *.pkg.tar.*
 *.src.tar.*
 .aur-repo/

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.core.config import RGBColor, validate_led_path
+from casper_keyboard_rgb.core.config import RGBColor, validate_led_path
 
 
 class TestRGBColor:

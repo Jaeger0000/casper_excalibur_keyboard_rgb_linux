@@ -4,8 +4,8 @@ import re
 
 import pytest
 
-from src.core.config import Brightness, RGBColor, Zone
-from src.core.led_controller import LEDController
+from casper_keyboard_rgb.core.config import Brightness, RGBColor, Zone
+from casper_keyboard_rgb.core.led_controller import LEDController
 
 
 class TestBuildCommand:

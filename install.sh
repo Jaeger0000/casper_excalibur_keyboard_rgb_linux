@@ -128,7 +128,7 @@ if [[ -d "$INSTALL_DIR" ]]; then
 fi
 
 sudo mkdir -p "$INSTALL_DIR"
-sudo cp -r "${SCRIPT_DIR}/src"     "$INSTALL_DIR/"
+sudo cp -r "${SCRIPT_DIR}/casper_keyboard_rgb" "$INSTALL_DIR/"
 sudo cp -r "${SCRIPT_DIR}/data"    "$INSTALL_DIR/"
 sudo cp -r "${SCRIPT_DIR}/systemd" "$INSTALL_DIR/"
 sudo cp -r "${SCRIPT_DIR}/driver"  "$INSTALL_DIR/"
@@ -167,7 +167,7 @@ ok "Sistem dosyaları kuruldu."
 sudo tee /usr/local/bin/casper-keyboard-rgb >/dev/null << 'LAUNCHER'
 #!/bin/bash
 cd /opt/casper-keyboard-rgb
-exec python -m src.main "$@"
+exec python -m casper_keyboard_rgb.main "$@"
 LAUNCHER
 sudo chmod 755 /usr/local/bin/casper-keyboard-rgb
 

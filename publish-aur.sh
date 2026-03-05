@@ -37,7 +37,8 @@ for cmd in git makepkg ssh; do
     command -v "$cmd" &>/dev/null || fail "'$cmd' bulunamadı. Lütfen kurun."
 done
 
-if ! ssh -T aur@aur.archlinux.org 2>&1 | grep -q "authenticated"; then
+AUR_SSH_OUTPUT=$(ssh -T aur@aur.archlinux.org 2>&1 || true)
+if ! echo "$AUR_SSH_OUTPUT" | grep -q "Welcome to AUR"; then
     echo ""
     warn "AUR SSH bağlantısı kurulamadı."
     echo ""

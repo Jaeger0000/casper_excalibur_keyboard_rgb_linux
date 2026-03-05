@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from src.core.config import RGBColor
-from src.core.profiles import Profile, ProfileManager
+from casper_keyboard_rgb.core.config import RGBColor
+from casper_keyboard_rgb.core.profiles import Profile, ProfileManager
 
 
 @pytest.fixture

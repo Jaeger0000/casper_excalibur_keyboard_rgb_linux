@@ -3,7 +3,7 @@
 # ── Development ──────────────────────────────
 
 run:
-	python -m src.main
+	python -m casper_keyboard_rgb.main
 
 test:
 	python -m pytest tests/ -v
