@@ -1,0 +1,22 @@
+[Unit]
+Description=Casper Keyboard RGB – restore last colour on boot
+After=multi-user.target
+ConditionPathExists=/sys/class/leds/casper::kbd_backlight/led_control
+
+[Service]
+Type=oneshot
+# Runs as root so it can write to sysfs directly (no pkexec needed)
+ExecStart=/usr/bin/casper-keyboard-rgb --restore
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/sys/class/leds/
+ProtectHome=read-only
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
