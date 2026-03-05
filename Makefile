@@ -1,23 +1,22 @@
-.PHONY: run install install-system clean test lint
+.PHONY: run install install-system clean test build aur-build
 
 # ── Development ──────────────────────────────
 
 run:
-	python -m casper_keyboard_rgb.main
+	cd casper-keyboard-rgb && cargo run
 
 test:
-	python -m pytest tests/ -v
+	cd casper-keyboard-rgb && cargo test
 
-lint:
-	python -m flake8 casper_keyboard_rgb/ tests/
-	python -m mypy casper_keyboard_rgb/
+build:
+	cd casper-keyboard-rgb && cargo build --release
 
 # ── Installation ─────────────────────────────
 
-install:
-	pip install -e .
+install: build
+	install -Dm755 casper-keyboard-rgb/target/release/casper-keyboard-rgb /usr/local/bin/casper-keyboard-rgb
 
-install-system:
+install-system: build
 	@echo "Installing system files (requires root)..."
 	install -Dm755 data/led-write-helper /usr/lib/casper-keyboard-rgb/led-write-helper
 	install -Dm644 data/org.casper.keyboard.rgb.policy /usr/share/polkit-1/actions/org.casper.keyboard.rgb.policy
@@ -30,8 +29,8 @@ install-system:
 # ── Cleanup ──────────────────────────────────
 
 clean:
-	rm -rf build/ dist/ *.egg-info .mypy_cache .pytest_cache
-	find . -type d -name __pycache__ -exec rm -rf {} +
+	cd casper-keyboard-rgb && cargo clean
+	rm -rf casper-keyboard-rgb-1.0.*.tar.gz
 
 # ── AUR build ────────────────────────────────
 

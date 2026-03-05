@@ -1,0 +1,19 @@
+[package]
+name = "casper-keyboard-rgb"
+version = "1.0.1"
+edition = "2021"
+authors = ["Jaeger <https://github.com/Jaeger0000>"]
+description = "Casper Excalibur Klavye RGB LED Kontrol Aracı"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+gtk4 = "0.7.3"
+libadwaita = "0.5.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.10.4"
+clap = { version = "4.5.4", features = ["derive"] }
+log = "0.4.21"
+env_logger = "0.11.3"
+libc = "0.2.153"
+dirs = "5.0.1"

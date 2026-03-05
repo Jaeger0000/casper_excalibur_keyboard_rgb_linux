@@ -7,34 +7,32 @@ arch=('x86_64')
 url="https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux"
 license=('GPL-3.0-or-later')
 depends=(
-    'python>=3.10'
-    'python-pyqt6'
+    'gtk4'
+    'libadwaita'
     'polkit'
     'dkms'
     'linux-headers'
 )
 makedepends=(
-    'python-build'
-    'python-installer'
-    'python-wheel'
-    'python-setuptools'
+    'cargo'
 )
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz")
-sha256sums=('861b81b1734a392beb5505085e817fea05c2e3de2c91d539a65100f4065139f6')
+sha256sums=('SKIP')
 install="${pkgname}.install"
 
 _srcdir="casper_excalibur_keyboard_rgb_linux-${pkgver}"
 
 build() {
-    cd "${srcdir}/${_srcdir}"
-    python -m build --wheel --no-isolation
+    cd "${srcdir}/${_srcdir}/casper-keyboard-rgb"
+    cargo build --release --locked
 }
 
 package() {
     cd "${srcdir}/${_srcdir}"
 
-    # ── Python package ───────────────────────────────────────
-    python -m installer --destdir="${pkgdir}" dist/*.whl
+    # ── Binary ───────────────────────────────────────────────
+    install -Dm755 casper-keyboard-rgb/target/release/casper-keyboard-rgb \
+        "${pkgdir}/usr/bin/${pkgname}"
 
     # ── Helper script (root-owned, 0755) ─────────────────────
     install -Dm755 data/led-write-helper \

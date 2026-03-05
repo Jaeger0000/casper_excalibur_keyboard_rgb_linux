@@ -46,8 +46,9 @@ fi
 info "Bağımlılıklar kontrol ediliyor..."
 
 DEPS=(
-    python
-    python-pyqt6
+    rust
+    gtk4
+    libadwaita
     dkms
     linux-headers
     base-devel
@@ -118,7 +119,7 @@ fi
 ok "LED kontrol dosyası mevcut."
 
 # ── 5. casper-keyboard-rgb uygulamasını kur ──────────────────
-info "Casper Keyboard RGB uygulaması kuruluyor..."
+info "Casper Keyboard RGB uygulaması derleniyor ve kuruluyor..."
 
 INSTALL_DIR="/opt/casper-keyboard-rgb"
 
@@ -127,12 +128,14 @@ if [[ -d "$INSTALL_DIR" ]]; then
     sudo rm -rf "$INSTALL_DIR"
 fi
 
+cd "${SCRIPT_DIR}/casper-keyboard-rgb"
+cargo build --release
+
 sudo mkdir -p "$INSTALL_DIR"
-sudo cp -r "${SCRIPT_DIR}/casper_keyboard_rgb" "$INSTALL_DIR/"
+sudo cp "target/release/casper-keyboard-rgb" "$INSTALL_DIR/"
 sudo cp -r "${SCRIPT_DIR}/data"    "$INSTALL_DIR/"
 sudo cp -r "${SCRIPT_DIR}/systemd" "$INSTALL_DIR/"
 sudo cp -r "${SCRIPT_DIR}/driver"  "$INSTALL_DIR/"
-sudo cp    "${SCRIPT_DIR}/pyproject.toml" "$INSTALL_DIR/" 2>/dev/null || true
 
 # ── 6. Sistem dosyalarını kur ────────────────────────────────
 info "Sistem dosyaları kuruluyor..."
@@ -164,12 +167,7 @@ sudo udevadm trigger
 ok "Sistem dosyaları kuruldu."
 
 # ── 7. Launcher script oluştur ───────────────────────────────
-sudo tee /usr/local/bin/casper-keyboard-rgb >/dev/null << 'LAUNCHER'
-#!/bin/bash
-cd /opt/casper-keyboard-rgb
-exec python -m casper_keyboard_rgb.main "$@"
-LAUNCHER
-sudo chmod 755 /usr/local/bin/casper-keyboard-rgb
+sudo ln -sf "$INSTALL_DIR/casper-keyboard-rgb" /usr/local/bin/casper-keyboard-rgb
 
 ok "casper-keyboard-rgb komutu oluşturuldu."
 

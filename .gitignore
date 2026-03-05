@@ -28,7 +28,7 @@ htmlcov/
 
 # AUR build artifacts
 pkg/
-src/
+# src/
 *.pkg.tar.*
 *.src.tar.*
 *.tar.gz
@@ -37,3 +37,6 @@ src/
 # OS
 .DS_Store
 Thumbs.db
+rust_gtk_test/
+go-gui/
+my_gui/
