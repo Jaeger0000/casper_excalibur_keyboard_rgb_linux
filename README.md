@@ -92,7 +92,7 @@ casper_keyboard_rgb/
 
 Uygulama **asla root olarak çalışmaz**. LED dosyasına yazma izni udev kuralı ile sağlanır:
 
-1. Udev kuralı LED kontrol dosyasını `0666` izinli yapar (şifresiz erişim)
+1. Udev kuralı LED kontrol dosyasını `video` grubuna atar ve `0660` izinli yapar (gruba dahil kullanıcılar için şifresiz erişim)
 2. Fallback olarak Polkit + dedicated helper betik kullanılır
 3. Veri formatı strict regex ile doğrulanır
 4. Symlink saldırıları `readlink -f` + `/sys/` prefix kontrolü ile önlenir

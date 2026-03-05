@@ -178,7 +178,8 @@ sudo systemctl enable casper-keyboard-rgb-restore.service 2>/dev/null
 ok "Açılışta renk geri yükleme servisi etkinleştirildi."
 
 # ── 9. LED izinlerini hemen uygula ───────────────────────────
-sudo chmod 0666 "$LED_CONTROL" 2>/dev/null || true
+sudo chgrp video "$LED_CONTROL" 2>/dev/null || true
+sudo chmod 0660 "$LED_CONTROL" 2>/dev/null || true
 
 # ── Bitti ─────────────────────────────────────────────────────
 echo ""
