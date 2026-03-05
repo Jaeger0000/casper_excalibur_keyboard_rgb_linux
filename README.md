@@ -2,7 +2,12 @@
 
 Casper Excalibur dizüstü bilgisayarların klavye RGB LED'lerini Linux üzerinde kontrol etmek için bir GUI uygulaması.
 
-[casper-wmi](https://github.com/Mustafa-eksi/casper-wmi) kernel modülünü kullanır.
+## Teşekkürler
+
+Bu proje, **[Mustafa Ekşi](https://github.com/Mustafa-eksi)** tarafından geliştirilen
+[casper-wmi](https://github.com/Mustafa-eksi/casper-wmi) kernel modülünü içerir.
+Kernel modülünün kaynak kodu `driver/` dizininde gömülü olarak bulunmaktadır ve
+GPL-2.0-or-later lisansı altında dağıtılmaktadır.
 
 ## Özellikler
 
@@ -13,32 +18,36 @@ Casper Excalibur dizüstü bilgisayarların klavye RGB LED'lerini Linux üzerind
 - **Açılışta geri yükleme** – systemd servisi ile son rengi hatırla
 - **Güvenli** – ayrıcalık yükseltme Polkit + dedicated helper ile
 
-## Gereksinimler
-
-- [casper-wmi](https://github.com/Mustafa-eksi/casper-wmi) kernel modülü
-- Python 3.10+
-- PyQt6
-- polkit
-
 ## Kurulum
 
-### AUR (Arch Linux)
+### AUR (Önerilen)
 
 ```bash
-# AUR helper ile
 yay -S casper-keyboard-rgb
-
-# veya elle
-git clone https://github.com/jaeger/casper_excalibur_keyboard_rgb_linux.git
-cd casper_excalibur_keyboard_rgb_linux
-makepkg -si
 ```
 
-### Elle Kurulum
+Tek komut. Gerisini paket yöneticisi halleder:
+- casper-wmi kernel modülünü DKMS ile derler ve yükler
+- Udev kuralını kurar (şifresiz LED kontrolü)
+- Uygulama menüsüne kısayol ekler
+- Systemd servisini kurar (açılışta son renki geri yükleme)
+
+### Manuel Kurulum
 
 ```bash
-pip install -e .
-sudo make install-system
+git clone https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux.git
+cd casper_excalibur_keyboard_rgb_linux
+./install.sh
+```
+
+### Kaldırma
+
+```bash
+# AUR ile kuruldu ise:
+yay -Rns casper-keyboard-rgb
+
+# Manuel kuruldu ise:
+./uninstall.sh
 ```
 
 ## Kullanım
@@ -58,11 +67,16 @@ sudo systemctl enable casper-keyboard-rgb-restore.service
 ## Mimarisi
 
 ```
+driver/
+├── casper-wmi.c               # Kernel modülü (Mustafa Ekşi, GPL-2.0)
+├── Makefile                   # Kernel build dosyası
+└── dkms.conf                  # DKMS yapılandırması
+
 src/
 ├── main.py                    # Entry point (GUI + --restore CLI)
 ├── core/
 │   ├── config.py              # Sabitler, RGBColor, doğrulama
-│   ├── led_controller.py      # LED yazma (Polkit helper üzerinden)
+│   ├── led_controller.py      # LED yazma (direkt + Polkit fallback)
 │   └── profiles.py            # JSON profil yönetimi
 ├── gui/
 │   ├── main_window.py         # Ana pencere
@@ -76,13 +90,12 @@ src/
 
 ## Güvenlik Modeli
 
-Uygulama **asla root olarak çalışmaz**. Root yetkisi gerektiren tek işlem – sysfs'e yazma – ayrı bir helper betiği (`/usr/lib/casper-keyboard-rgb/led-write-helper`) üzerinden yapılır:
+Uygulama **asla root olarak çalışmaz**. LED dosyasına yazma izni udev kuralı ile sağlanır:
 
-1. Helper yalnızca sabit `led_control` dosyasına yazar
-2. Veri formatı strict regex ile doğrulanır
-3. Helper root'a ait, `0755` izinli
-4. Polkit policy yalnızca bu helper'ı yetkilendirir
-5. Symlink saldırıları `readlink -f` + `/sys/` prefix kontrolü ile önlenir
+1. Udev kuralı LED kontrol dosyasını `0666` izinli yapar (şifresiz erişim)
+2. Fallback olarak Polkit + dedicated helper betik kullanılır
+3. Veri formatı strict regex ile doğrulanır
+4. Symlink saldırıları `readlink -f` + `/sys/` prefix kontrolü ile önlenir
 
 ## Geliştirme
 
@@ -93,6 +106,20 @@ make test
 # Çalıştır
 make run
 ```
+
+## AUR'a Yayınlama (Geliştirici İçin)
+
+```bash
+# AUR SSH key ayarlı olmalı: https://aur.archlinux.org/account
+./publish-aur.sh
+```
+
+Bu betik otomatik olarak:
+1. GitHub'da `v1.0.0` tag'i oluşturur (yoksa)
+2. AUR deposunu klonlar
+3. PKGBUILD ve .install dosyalarını kopyalar
+4. `.SRCINFO` oluşturur
+5. AUR'a push eder
 
 ## Lisans
 
