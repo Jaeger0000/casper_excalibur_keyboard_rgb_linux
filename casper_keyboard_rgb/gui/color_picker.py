@@ -82,9 +82,6 @@ class ColorPicker(QWidget):
             self._color,
             self,
             "Renk Seçin",
-            QColorDialog.ColorDialogOption.ShowAlphaChannel
-            if False  # alpha not needed for LED
-            else QColorDialog.ColorDialogOption(0),
         )
         if color.isValid():
             self.color = color

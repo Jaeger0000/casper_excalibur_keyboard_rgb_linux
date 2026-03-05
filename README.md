@@ -115,7 +115,7 @@ make run
 ```
 
 Bu betik otomatik olarak:
-1. GitHub'da `v1.0.0` tag'i oluşturur (yoksa)
+1. GitHub'da `v1.0.1` tag'i oluşturur (yoksa)
 2. AUR deposunu klonlar
 3. PKGBUILD ve .install dosyalarını kopyalar
 4. `.SRCINFO` oluşturur

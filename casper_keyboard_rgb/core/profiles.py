@@ -155,12 +155,19 @@ class ProfileManager:
 
     def _ensure_storage(self) -> None:
         """Create config dir and seed defaults if needed."""
-        self._config_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self._config_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            logger.warning("Yapılandırma dizini oluşturulamadı: %s", exc)
+            return
 
         if not self._profiles_file.exists():
-            initial = {"profiles": _DEFAULTS, "last_used": None}
-            self._write_atomic(initial)
-            logger.info("Varsayılan profiller oluşturuldu: %s", self._profiles_file)
+            try:
+                initial = {"profiles": _DEFAULTS, "last_used": None}
+                self._write_atomic(initial)
+                logger.info("Varsayılan profiller oluşturuldu: %s", self._profiles_file)
+            except OSError as exc:
+                logger.warning("Varsayılan profiller yazılamadı: %s", exc)
 
     def _read(self) -> dict:
         """Read and parse the JSON file."""

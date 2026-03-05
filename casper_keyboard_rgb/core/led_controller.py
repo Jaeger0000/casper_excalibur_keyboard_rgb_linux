@@ -200,7 +200,11 @@ class LEDController:
 
     def _write_direct(self, command: str) -> None:
         """Write directly – works with udev rule or when running as root."""
-        path = validate_led_path(self._led_path)
+        try:
+            path = validate_led_path(self._led_path)
+        except (FileNotFoundError, PermissionError) as exc:
+            raise LEDControllerError(str(exc)) from exc
+
         try:
             with open(path, "w") as fp:
                 fp.write(command)

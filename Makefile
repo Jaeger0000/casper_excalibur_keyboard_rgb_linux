@@ -9,8 +9,8 @@ test:
 	python -m pytest tests/ -v
 
 lint:
-	python -m flake8 src/ tests/
-	python -m mypy src/
+	python -m flake8 casper_keyboard_rgb/ tests/
+	python -m mypy casper_keyboard_rgb/
 
 # ── Installation ─────────────────────────────
 
