@@ -1,4 +1,4 @@
-.PHONY: run install install-system clean test lint
+.PHONY: run install install-system clean test lint deb
 
 # ── Development ──────────────────────────────
 
@@ -37,3 +37,8 @@ clean:
 
 aur-build:
 	makepkg -si
+
+# ── Debian build ─────────────────────────────
+
+deb:
+	./build-deb.sh
