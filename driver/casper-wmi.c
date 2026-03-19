@@ -51,7 +51,7 @@ struct casper_wmi_args {
 	u32 a2, a3, a4, a5, a6, rev0, rev1;
 };
 
-static u32 last_keyboard_led_change;
+static u32 last_keyboard_led_change[3] = {0x02FFFFFF, 0x02FFFFFF, 0x02FFFFFF};
 static u32 last_keyboard_led_zone;
 static bool *casper_raw_fanspeed;
 
@@ -151,7 +151,13 @@ static ssize_t led_control_store(struct device *dev, struct device_attribute
 		return ret;
 	}
 	if (led_zone != 7) {
-		last_keyboard_led_change = (u32) (tmp & 0xFFFFFFFF);
+		if (led_zone == CASPER_ALL_KEYBOARD_LEDS) {
+			last_keyboard_led_change[0] = (u32) (tmp & 0xFFFFFFFF);
+			last_keyboard_led_change[1] = (u32) (tmp & 0xFFFFFFFF);
+			last_keyboard_led_change[2] = (u32) (tmp & 0xFFFFFFFF);
+		} else if (led_zone >= CASPER_KEYBOARD_LED_1 && led_zone <= CASPER_KEYBOARD_LED_3) {
+			last_keyboard_led_change[led_zone - CASPER_KEYBOARD_LED_1] = (u32) (tmp & 0xFFFFFFFF);
+		}
 		last_keyboard_led_zone = led_zone;
 	}
 	return count;
@@ -169,22 +175,27 @@ ATTRIBUTE_GROUPS(casper_kbd_led);
 static void set_casper_backlight_brightness(struct led_classdev *led_cdev,
 					    enum led_brightness brightness)
 {
-	// Setting any of the keyboard leds' brightness sets brightness of all
-	acpi_status ret = casper_set(CASPER_SET_LED,
-				     CASPER_KEYBOARD_LED_1,
-				     (last_keyboard_led_change & 0xF0FFFFFF) |
-				     (((u32) brightness) << 24));
+	int i;
+	acpi_status ret;
 
-	if (ret != 0)
-		dev_err(led_cdev->dev,
-			"Couldn't set brightness acpi status: %d\n", ret);
+	// Setting any of the keyboard leds' brightness sets brightness of all
+	for (i = 0; i < 3; i++) {
+		ret = casper_set(CASPER_SET_LED,
+				 CASPER_KEYBOARD_LED_1 + i,
+				 (last_keyboard_led_change[i] & 0xF0FFFFFF) |
+				 (((u32) brightness) << 24));
+
+		if (ret != 0)
+			dev_err(led_cdev->dev,
+				"Couldn't set brightness acpi status: %d\n", ret);
+	}
 }
 
 // Corner leds' brightness can be different from keyboard leds' but this is discarded.
 static enum led_brightness get_casper_backlight_brightness(struct led_classdev
 							   *led_cdev)
 {
-	return (last_keyboard_led_change & 0x0F000000) >> 24;
+	return (last_keyboard_led_change[0] & 0x0F000000) >> 24;
 }
 
 static struct led_classdev casper_kbd_led = {
