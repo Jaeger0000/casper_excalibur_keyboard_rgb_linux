@@ -117,8 +117,8 @@ jobs:
         mkdir -p ~/.ssh
         ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
 
-        # Ensure we have the latest generated files (e.g. PKGBUILD updated by semantic release)
-        git pull origin main --rebase
+        # Release steps may leave tracked changes in the workspace.
+        # Use the current checked-out files directly instead of rebasing here.
 
         # Clone AUR repo
         git clone ssh://aur@aur.archlinux.org/casper-keyboard-rgb.git aur_repo
