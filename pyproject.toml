@@ -26,3 +26,19 @@ include = ["casper_keyboard_rgb*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.semantic_release]
+version_variables = [
+    "casper_keyboard_rgb/__init__.py:__version__",
+]
+version_toml = [
+    "pyproject.toml:project.version",
+]
+build_command = "python -m build"
+commit_message = "chore(release): v{version} [skip ci]"
+
+[tool.semantic_release.publish]
+upload_to_vcs_release = true
+
+[tool.semantic_release.commit_parser]
+# By default semantic-release uses angular commit parsing
