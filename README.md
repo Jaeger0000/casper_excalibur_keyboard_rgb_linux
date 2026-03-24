@@ -9,7 +9,7 @@ Casper Excalibur dizüstü bilgisayarların klavye RGB LED'lerini Linux üzerind
 
 > **English summary:** A GUI application to control keyboard RGB LEDs on Casper Excalibur laptops under Linux. Supports per-zone color control, brightness levels, profile saving, and automatic restore on boot.
 
-## Teşekkürler
+## Teşekkürler 
 
 Bu proje, **[Mustafa Ekşi](https://github.com/Mustafa-eksi)** tarafından geliştirilen
 [casper-wmi](https://github.com/Mustafa-eksi/casper-wmi) kernel modülünü içerir.
