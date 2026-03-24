@@ -1,9 +1,15 @@
 # CHANGELOG
 
 
+## v1.1.1 (2026-03-24)
+
+
 ## v1.1.0 (2026-03-24)
 
 ### Bug Fixes
+
+- Ci.yml
+  ([`10e8835`](https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/commit/10e883545c2c74ef41f09ec14316992f1a71a0ba))
 
 - Ensure uniform brightness across all keyboard LED zones
   ([`598cf38`](https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/commit/598cf38e45166f6b61028524ca1b80281cf3727c))
