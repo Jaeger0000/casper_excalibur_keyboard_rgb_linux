@@ -38,16 +38,18 @@ jobs:
       run: |
         pacman -Syu --noconfirm
         pacman -S --noconfirm python python-pip xorg-server-xvfb qt6-base gcc make
-    - name: Ensure correct Python environment
+    - name: Create virtual environment
       run: |
-        rm -rf /usr/lib/python3.13/EXTERNALLY-MANAGED || rm -rf /usr/lib/python*/EXTERNALLY-MANAGED || true
+        python -m venv .venv
     - name: Install Python dependencies
       run: |
+        . .venv/bin/activate
         python -m pip install --upgrade pip
         pip install -e .
         pip install pytest pytest-qt flake8 mypy
     - name: Run Tests
       run: |
+        . .venv/bin/activate
         xvfb-run make test
 
   release:
