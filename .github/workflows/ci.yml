@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 jobs:
   test-ubuntu:
@@ -52,7 +52,7 @@ jobs:
 
   release:
     needs: [test-ubuntu, test-archlinux]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -94,7 +94,7 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add PKGBUILD
         git commit -m "chore(pkgbuild): update to v$NEW_VERSION [skip ci]" || true
-        git push origin HEAD:master || true
+        git push origin HEAD:main || true
 
     - name: Setup SSH for AUR
       if: steps.semantic.outputs.released == 'true'
@@ -116,7 +116,7 @@ jobs:
         ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
 
         # Ensure we have the latest generated files (e.g. PKGBUILD updated by semantic release)
-        git pull origin master --rebase
+        git pull origin main --rebase
 
         # Clone AUR repo
         git clone ssh://aur@aur.archlinux.org/casper-keyboard-rgb.git aur_repo
