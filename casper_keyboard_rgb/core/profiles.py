@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Iterator, Optional
 
 from casper_keyboard_rgb.core.config import (
-    BRIGHTNESS_LABELS,
     CONFIG_DIR,
     MAX_BRIGHTNESS,
     MIN_BRIGHTNESS,
