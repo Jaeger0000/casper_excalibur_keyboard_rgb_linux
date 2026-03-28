@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v1.1.2 (2026-03-28)
+
+### Bug Fixes
+
+- Merge pull request #10 from Jaeger0000/fix-unused-import-brightness-labels-
+  ([`748e1a6`](https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/commit/748e1a60de0e20d55ca69e95382369b301c85b59))
+
+🧹 Remove unused import BRIGHTNESS_LABELS in profiles.py
+
+### Chores
+
+- Remove unused import BRIGHTNESS_LABELS in profiles.py
+  ([`d499cc2`](https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/commit/d499cc22ee26e458be4c0321178597349844f370))
+
+Removed the unused `BRIGHTNESS_LABELS` import from `casper_keyboard_rgb/core/profiles.py` to improve
+  code health and maintainability. Confirmed that the import is not used anywhere in the file.
+  Verified the change using `ruff` and ran unit tests to ensure no regressions.
+
+Co-authored-by: Jaeger0000 <147045444+Jaeger0000@users.noreply.github.com>
+
+
 ## v1.1.1 (2026-03-24)
 
 
