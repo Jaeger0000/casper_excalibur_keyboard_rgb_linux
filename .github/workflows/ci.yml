@@ -116,9 +116,12 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-        # Fetch AUR host key and verify it matches the known fingerprint.
-        # This prevents MITM: if the fingerprint differs, the step fails.
+        # Remove any stale/conflicting known_hosts entries for AUR
+        # (webfactory/ssh-agent may have added one from a previous scan)
+        # then fetch the fresh key and verify against the known fingerprint.
         mkdir -p ~/.ssh
+        touch ~/.ssh/known_hosts
+        ssh-keygen -f ~/.ssh/known_hosts -R aur.archlinux.org 2>/dev/null || true
         ssh-keyscan -t ed25519 aur.archlinux.org > /tmp/aur_hostkey.txt
         ssh-keygen -lf /tmp/aur_hostkey.txt | grep -q "SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4" \
           || { echo "ERROR: AUR host key fingerprint mismatch!"; exit 1; }
