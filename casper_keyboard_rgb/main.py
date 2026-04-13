@@ -14,7 +14,10 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import pwd
 import sys
+from pathlib import Path
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
@@ -22,6 +25,31 @@ LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 def _setup_logging(verbose: bool = False) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(format=LOG_FORMAT, level=level, stream=sys.stderr)
+
+
+def _find_user_config_dir() -> Path:
+    """
+    Return the config directory to restore from.
+
+    When the process runs as root (e.g. systemd service) Path.home() resolves
+    to /root, not to the desktop user's home.  Scan /etc/passwd for the first
+    human user (UID ≥ 1000) who already has a profiles.json and return their
+    config directory instead.  Falls back to the standard CONFIG_DIR when no
+    match is found.
+    """
+    from casper_keyboard_rgb.core.config import APP_NAME, CONFIG_DIR
+
+    if os.getuid() != 0:
+        return CONFIG_DIR
+
+    for pw in sorted(pwd.getpwall(), key=lambda p: p.pw_uid):
+        if pw.pw_uid < 1000:
+            continue
+        candidate = Path(pw.pw_dir) / ".config" / APP_NAME / "profiles.json"
+        if candidate.exists():
+            return Path(pw.pw_dir) / ".config" / APP_NAME
+
+    return CONFIG_DIR
 
 
 def _restore() -> int:
@@ -37,7 +65,7 @@ def _restore() -> int:
 
     logger = logging.getLogger("restore")
 
-    pm = ProfileManager()
+    pm = ProfileManager(config_dir=_find_user_config_dir())
     profile = pm.get_last_used()
     if profile is None:
         logger.info("Geri yüklenecek profil yok – çıkılıyor.")

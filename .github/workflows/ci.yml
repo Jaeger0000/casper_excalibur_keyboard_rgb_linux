@@ -81,7 +81,7 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Publish package distributions to GitHub Releases
-      uses: python-semantic-release/upload-to-gh-release@main
+      uses: python-semantic-release/upload-to-gh-release@v3
       if: steps.semantic.outputs.released == 'true'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -95,8 +95,10 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add PKGBUILD
-        git commit -m "chore(pkgbuild): update to v$NEW_VERSION [skip ci]" || true
-        git push origin HEAD:main || true
+        if ! git diff-index --quiet HEAD; then
+          git commit -m "chore(pkgbuild): update to v$NEW_VERSION [skip ci]"
+          git push origin HEAD:main
+        fi
 
     - name: Setup SSH for AUR
       if: steps.semantic.outputs.released == 'true'
@@ -113,9 +115,10 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-        # Add AUR host key
+        # Add verified AUR host key (avoids ssh-keyscan MITM risk)
         mkdir -p ~/.ssh
-        ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+        echo "aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLTi0" >> ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/known_hosts
 
         # Release steps may leave tracked changes in the workspace.
         # Use the current checked-out files directly instead of rebasing here.
