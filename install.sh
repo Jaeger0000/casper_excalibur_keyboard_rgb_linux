@@ -154,8 +154,15 @@ sudo install -Dm644 "$INSTALL_DIR/data/casper-keyboard-rgb.desktop" \
     /usr/share/applications/casper-keyboard-rgb.desktop
 
 # Systemd service
+# The shipped unit points at /usr/bin (where the AUR and .deb packages put
+# the entry point).  A manual install puts its launcher in /usr/local/bin,
+# so rewrite ExecStart to match or the service fails with 203/EXEC.
 sudo install -Dm644 "$INSTALL_DIR/systemd/casper-keyboard-rgb-restore.service" \
     /usr/lib/systemd/system/casper-keyboard-rgb-restore.service
+sudo sed -i \
+    's|^ExecStart=/usr/bin/casper-keyboard-rgb|ExecStart=/usr/local/bin/casper-keyboard-rgb|' \
+    /usr/lib/systemd/system/casper-keyboard-rgb-restore.service
+sudo systemctl daemon-reload
 
 # Udev kurallarını yeniden yükle
 sudo udevadm control --reload-rules
@@ -180,6 +187,14 @@ ok "Açılışta renk geri yükleme servisi etkinleştirildi."
 # ── 9. LED izinlerini hemen uygula ───────────────────────────
 sudo chgrp video "$LED_CONTROL" 2>/dev/null || true
 sudo chmod 0660 "$LED_CONTROL" 2>/dev/null || true
+
+# Udev kuralı LED dosyasını 'video' grubuna veriyor; kullanıcı bu grupta
+# değilse her renk değişiminde parola soran Polkit yoluna düşer.
+if ! id -nG "$USER" | tr ' ' '\n' | grep -qx video; then
+    warn "Kullanıcınız 'video' grubunda değil – şifresiz LED kontrolü çalışmaz."
+    info "Eklemek için: sudo usermod -aG video $USER"
+    info "Ardından oturumu kapatıp yeniden açın."
+fi
 
 # ── Bitti ─────────────────────────────────────────────────────
 echo ""

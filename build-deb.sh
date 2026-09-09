@@ -6,7 +6,7 @@
 #   ./build-deb.sh
 #
 # Çıktı:
-#   casper-keyboard-rgb_1.0.1-1_amd64.deb
+#   casper-keyboard-rgb_<pyproject sürümü>-1_amd64.deb
 # ──────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -23,8 +23,15 @@ fail()  { echo -e "${RED}[FAIL]${NC} $*"; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_NAME="casper-keyboard-rgb"
-PKG_VERSION="1.0.1"
-PKG_REL="1"
+
+# Single source of truth for the version: pyproject.toml.  Hard-coding it
+# here let the .deb drift several releases behind the rest of the project.
+PKG_VERSION="$(sed -n 's/^version = "\(.*\)"$/\1/p' "${SCRIPT_DIR}/pyproject.toml" | head -1)"
+if [[ -z "$PKG_VERSION" ]]; then
+    echo "[FAIL] pyproject.toml içinden sürüm okunamadı." >&2
+    exit 1
+fi
+PKG_REL="${PKG_REL:-1}"
 ARCH="amd64"
 DEB_NAME="${PKG_NAME}_${PKG_VERSION}-${PKG_REL}_${ARCH}"
 BUILD_DIR="${SCRIPT_DIR}/deb-build/${DEB_NAME}"
@@ -51,7 +58,7 @@ Version: ${PKG_VERSION}-${PKG_REL}
 Section: utils
 Priority: optional
 Architecture: ${ARCH}
-Depends: python3 (>= 3.10), python3-pyqt6, dkms, policykit-1
+Depends: python3 (>= 3.10), python3-pyqt6, dkms, udev, polkitd | policykit-1
 Recommends: linux-headers-generic
 Maintainer: Jaeger <https://github.com/Jaeger0000>
 Homepage: https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux
@@ -77,8 +84,17 @@ set -e
 DRIVER_VER="1.0.0"
 if command -v dkms &>/dev/null; then
     dkms add -m casper-wmi -v "$DRIVER_VER" 2>/dev/null || true
-    dkms build -m casper-wmi -v "$DRIVER_VER" 2>/dev/null || true
-    dkms install -m casper-wmi -v "$DRIVER_VER" 2>/dev/null || true
+    # Build errors are reported: silently swallowing them left users with
+    # a package that installs fine but has no LED device at all.
+    if dkms build -m casper-wmi -v "$DRIVER_VER"; then
+        dkms install -m casper-wmi -v "$DRIVER_VER" || true
+    else
+        echo "UYARI: casper-wmi DKMS derlemesi başarısız oldu." >&2
+        echo "  Kernel başlıklarını kurun: sudo apt install linux-headers-\$(uname -r)" >&2
+        echo "  Ardından: sudo dkms install -m casper-wmi -v $DRIVER_VER" >&2
+    fi
+else
+    echo "UYARI: dkms bulunamadı, casper-wmi modülü derlenmedi." >&2
 fi
 
 # Modülü yükle

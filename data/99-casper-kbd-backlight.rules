@@ -1,3 +1,7 @@
-# Give the logged-in user write access to Casper keyboard LED control.
-# This avoids the need for root/pkexec on every colour change.
-SUBSYSTEM=="leds", KERNEL=="casper::kbd_backlight", RUN+="/bin/chgrp video /sys/class/leds/casper::kbd_backlight/led_control", RUN+="/bin/chmod 0660 /sys/class/leds/casper::kbd_backlight/led_control"
+# Give members of the "video" group write access to the Casper keyboard LED
+# control file, so colour changes need no root/pkexec round trip.
+#
+# ACTION is matched explicitly: without it these commands also ran on
+# "remove" events, spawning two processes for a file that is going away.
+ACTION=="add|change", SUBSYSTEM=="leds", KERNEL=="casper::kbd_backlight", \
+    RUN+="/bin/sh -c 'chgrp video /sys/class/leds/casper::kbd_backlight/led_control && chmod 0660 /sys/class/leds/casper::kbd_backlight/led_control'"

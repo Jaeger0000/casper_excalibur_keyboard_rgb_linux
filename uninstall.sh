@@ -24,8 +24,9 @@ echo -e "${BOLD}Casper Keyboard RGB kaldırılıyor...${NC}"
 echo ""
 
 # Systemd servisi
-sudo systemctl disable casper-keyboard-rgb-restore.service 2>/dev/null || true
+sudo systemctl disable --now casper-keyboard-rgb-restore.service 2>/dev/null || true
 sudo rm -f /usr/lib/systemd/system/casper-keyboard-rgb-restore.service
+sudo systemctl daemon-reload 2>/dev/null || true
 ok "Systemd servisi kaldırıldı."
 
 # Sistem dosyaları
@@ -38,6 +39,7 @@ ok "Sistem dosyaları kaldırıldı."
 
 # Udev yeniden yükle
 sudo udevadm control --reload-rules 2>/dev/null || true
+sudo udevadm trigger --subsystem-match=leds 2>/dev/null || true
 
 # Uygulama dizini
 sudo rm -rf /opt/casper-keyboard-rgb

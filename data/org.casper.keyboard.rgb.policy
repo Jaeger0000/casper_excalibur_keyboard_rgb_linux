@@ -11,7 +11,7 @@
 -->
 <policyconfig>
   <vendor>Casper Keyboard RGB</vendor>
-  <vendor_url>https://github.com/jaeger/casper_excalibur_keyboard_rgb_linux</vendor_url>
+  <vendor_url>https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux</vendor_url>
 
   <action id="org.casper.keyboard.rgb.write-led">
     <description>Write to Casper keyboard LED control file</description>

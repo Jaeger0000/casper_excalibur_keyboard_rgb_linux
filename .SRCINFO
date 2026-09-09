@@ -1,6 +1,6 @@
 pkgbase = casper-keyboard-rgb
 	pkgdesc = Casper Excalibur Klavye RGB LED Kontrol Aracı (GUI + CLI)
-	pkgver = 1.0.0
+	pkgver = 1.1.3
 	pkgrel = 1
 	url = https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux
 	install = casper-keyboard-rgb.install
@@ -15,7 +15,7 @@ pkgbase = casper-keyboard-rgb
 	depends = polkit
 	depends = dkms
 	depends = linux-headers
-	source = casper-keyboard-rgb-1.0.0.tar.gz::https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/archive/v1.0.0.tar.gz
-	sha256sums = SKIP
+	source = casper-keyboard-rgb-1.1.3.tar.gz::https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/archive/v1.1.3.tar.gz
+	sha256sums = c542a1c3a33dbbe9a317f148eeec19f5f0cb2852e707becad56c98564c527346
 
 pkgname = casper-keyboard-rgb

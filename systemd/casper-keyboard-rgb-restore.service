@@ -1,6 +1,10 @@
 [Unit]
 Description=Casper Keyboard RGB – restore last colour on boot
-After=multi-user.target
+# The LED device only appears once casper-wmi is loaded, which
+# modules-load.d does in systemd-modules-load.service.  Ordering after
+# multi-user.target (the target this unit is also wanted by) pushed the
+# restore to the very end of boot for no reason.
+After=systemd-modules-load.service
 ConditionPathExists=/sys/class/leds/casper::kbd_backlight/led_control
 
 [Service]

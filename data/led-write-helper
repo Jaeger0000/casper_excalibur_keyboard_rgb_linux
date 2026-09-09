@@ -55,4 +55,6 @@ fi
 
 # ── Write ────────────────────────────────────────────────────
 
-printf '%s' "$COMMAND" > "$LED_CONTROL"
+# Write through $RESOLVED – the path the checks above were performed on –
+# rather than re-following $LED_CONTROL's symlinks a second time.
+printf '%s' "$COMMAND" > "$RESOLVED"
