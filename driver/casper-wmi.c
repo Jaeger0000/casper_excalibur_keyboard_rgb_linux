@@ -62,7 +62,9 @@ static int dmi_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static bool has_raw_fanspeed = true;
+// Kept for models whose fan speed is reported without byte swapping;
+// no entry in casper_dmi_list needs it yet.
+static bool has_raw_fanspeed __maybe_unused = true;
 static bool no_raw_fanspeed = false;
 
 static const struct dmi_system_id casper_dmi_list[] = {
@@ -138,6 +140,7 @@ static ssize_t led_control_store(struct device *dev, struct device_attribute
 {
 	u64 tmp;
 	int ret;
+	acpi_status status;
 
 	ret = kstrtou64(buf, 16, &tmp);
 	if (ret)
@@ -145,10 +148,15 @@ static ssize_t led_control_store(struct device *dev, struct device_attribute
 
 	u32 led_zone = (tmp >> (8 * 4));
 
-	ret = casper_set(CASPER_SET_LED, led_zone, (u32) (tmp & 0xFFFFFFFF));
-	if (ACPI_FAILURE(ret)) {
-		dev_err(dev, "casper-wmi ACPI status: %d\n", ret);
-		return ret;
+	status = casper_set(CASPER_SET_LED, led_zone, (u32) (tmp & 0xFFFFFFFF));
+	if (ACPI_FAILURE(status)) {
+		dev_err(dev, "casper-wmi ACPI status: 0x%x\n", status);
+		/*
+		 * A store callback must return either a negative errno or the
+		 * number of bytes consumed.  Returning the positive acpi_status
+		 * here made a failed write look like a successful short write.
+		 */
+		return -EIO;
 	}
 	if (led_zone != 7) {
 		if (led_zone == CASPER_ALL_KEYBOARD_LEDS) {
@@ -185,9 +193,9 @@ static void set_casper_backlight_brightness(struct led_classdev *led_cdev,
 				 (last_keyboard_led_change[i] & 0xF0FFFFFF) |
 				 (((u32) brightness) << 24));
 
-		if (ret != 0)
+		if (ACPI_FAILURE(ret))
 			dev_err(led_cdev->dev,
-				"Couldn't set brightness acpi status: %d\n", ret);
+				"Couldn't set brightness acpi status: 0x%x\n", ret);
 	}
 }
 
@@ -242,11 +250,13 @@ static acpi_status casper_query(struct wmi_device *wdev, u16 a1,
 	}
 	if (obj->type != ACPI_TYPE_BUFFER) {
 		dev_err(&wdev->dev, "Return type is not a buffer");
+		kfree(obj);
 		return AE_TYPE;
 	}
 
 	if (obj->buffer.length != 32) {
 		dev_err(&wdev->dev, "Return buffer is not long enough");
+		kfree(obj);
 		return AE_ERROR;
 	}
 	memcpy(out, obj->buffer.pointer, 32);
@@ -260,6 +270,9 @@ static umode_t casper_wmi_hwmon_is_visible(const void *drvdata,
 {
 	switch (type) {
 	case hwmon_fan:
+		// Fan speed decoding depends on a DMI match; hide it otherwise.
+		if (!casper_raw_fanspeed)
+			return 0;
 		return 0444;	// read only
 	case hwmon_pwm:
 		return 0644;	// read and write
@@ -275,10 +288,20 @@ static int casper_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types typ
 	struct casper_wmi_args out = { 0 };
 	switch (type) {
 	case hwmon_fan:
+		/*
+		 * casper_raw_fanspeed is only assigned when this laptop is in
+		 * casper_dmi_list.  The driver binds on the WMI GUID, which
+		 * every Excalibur exposes, so an unlisted model reaches here
+		 * with a NULL pointer – dereferencing it oopsed the kernel as
+		 * soon as anything read fan1_input.
+		 */
+		if (!casper_raw_fanspeed)
+			return -ENODEV;
+
 		acpi_status ret = casper_query(to_wmi_device(dev->parent),
 					       CASPER_GET_HARDWAREINFO, &out);
 		if (ACPI_FAILURE(ret))
-			return ret;
+			return -EIO;
 
 		if (channel == 0) {	// CPU fan
 			u16 cpu_fanspeed = (u16) out.a4;
@@ -297,8 +320,9 @@ static int casper_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types typ
 		}
 		return 0;
 	case hwmon_pwm:
-		casper_query(to_wmi_device(dev->parent), CASPER_POWERPLAN,
-			     &out);
+		if (ACPI_FAILURE(casper_query(to_wmi_device(dev->parent),
+					      CASPER_POWERPLAN, &out)))
+			return -EIO;
 		if (channel == 0) {
 			*val = (long)out.a2;
 		} else {
@@ -348,9 +372,8 @@ static int casper_wmi_hwmon_write(struct device *dev, enum hwmon_sensor_types ty
 			return -EINVAL;
 
 		ret = casper_set(CASPER_POWERPLAN, val, 0);
-		printk("Writing started: %ld", val);
 		if (ACPI_FAILURE(ret)) {
-			dev_err(dev, "Couldn't set power plan, acpi_status: %d",
+			dev_err(dev, "Couldn't set power plan, acpi_status: 0x%x",
 				ret);
 			return -EINVAL;
 		}
@@ -383,6 +406,7 @@ static const struct hwmon_chip_info casper_wmi_hwmon_chip_info = {
 static int casper_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct device *hwmon_dev;
+	int ret;
 
 	// All Casper Excalibur Laptops use this GUID
 	if (!wmi_has_guid(CASPER_WMI_GUID))
@@ -390,22 +414,28 @@ static int casper_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	dmi_check_system(casper_dmi_list);
 
-	if (casper_raw_fanspeed) {
-		// This is to add their BIOS version to the dmi list
+	if (!casper_raw_fanspeed) {
+		/*
+		 * No DMI match: the fan speed encoding for this model is
+		 * unknown, so the fan sensors stay hidden.  Report it so the
+		 * model can be added to casper_dmi_list.
+		 */
 		dev_warn(&wdev->dev,
-			 "If you are using an intel CPU older than 10th gen, contact driver maintainer.");
+			 "Unrecognised model, fan sensors disabled. Please report this laptop's DMI data to the driver maintainer.");
 	}
 
 	hwmon_dev =
 	    devm_hwmon_device_register_with_info(&wdev->dev, "casper_wmi", wdev,
 						 &casper_wmi_hwmon_chip_info,
 						 NULL);
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
 
-	acpi_status result = led_classdev_register(&wdev->dev, &casper_kbd_led);
-	if (result != 0)
-		return -ENODEV;
+	ret = led_classdev_register(&wdev->dev, &casper_kbd_led);
+	if (ret)
+		return ret;
 
-	return PTR_ERR_OR_ZERO(hwmon_dev);
+	return 0;
 }
 
 static void casper_wmi_remove(struct wmi_device *wdev)
