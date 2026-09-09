@@ -37,3 +37,7 @@ src/
 # OS
 .DS_Store
 Thumbs.db
+
+# Debian build artefacts
+deb-build/
+*.deb

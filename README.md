@@ -41,19 +41,20 @@ Tek komut. Gerisini paket yöneticisi halleder:
 
 ### Debian / Ubuntu (.deb)
 
-[Releases](https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/releases) sayfasından `.deb` paketini indirin:
+[Releases](https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/releases)
+sayfasında bir `.deb` varsa indirip kurabilirsiniz:
 
 ```bash
-# İndirdikten sonra:
-sudo apt install ./casper-keyboard-rgb_1.0.1-1_amd64.deb
+sudo apt install ./casper-keyboard-rgb_<sürüm>-1_amd64.deb
 ```
 
-Veya doğrudan terminal ile:
+Yoksa paketi kendiniz üretin – sürüm `pyproject.toml`'dan okunur:
 
 ```bash
-# Son sürümü indirip kur
-curl -sLO "https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux/releases/latest/download/casper-keyboard-rgb_1.0.1-1_amd64.deb"
-sudo apt install ./casper-keyboard-rgb_1.0.1-1_amd64.deb
+git clone https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux.git
+cd casper_excalibur_keyboard_rgb_linux
+./build-deb.sh
+sudo apt install ./casper-keyboard-rgb_*_amd64.deb
 ```
 
 ### Manuel Kurulum (Arch Linux)
@@ -100,6 +101,10 @@ casper-keyboard-rgb --restore
 sudo systemctl enable casper-keyboard-rgb-restore.service
 ```
 
+Uygulamada her "Uygula" işleminde son renk, bölge ve parlaklık kaydedilir;
+servis açılışta bunu geri yükler. Kaydedilmiş bir renk yoksa (temiz kurulum)
+servis sessizce çıkar.
+
 ## Proje Yapısı
 
 ```
@@ -122,6 +127,8 @@ casper_keyboard_rgb/
 └── utils/
     ├── permission_handler.py  # Ön kontroller
     └── validator.py           # Girdi doğrulama
+
+tests/                         # pytest paketi (çekirdek + GUI + restore)
 ```
 
 ## Güvenlik Modeli
@@ -132,6 +139,15 @@ Uygulama **asla root olarak çalışmaz**. LED dosyasına yazma izni udev kural�
 2. Fallback olarak Polkit + dedicated helper betik kullanılır
 3. Veri formatı strict regex ile doğrulanır
 4. Symlink saldırıları `readlink -f` + `/sys/` prefix kontrolü ile önlenir
+
+> **Şifresiz kontrol için:** kullanıcınız `video` grubunda olmalı. Değilse her
+> renk değişiminde Polkit parola sorar. Kontrol etmek ve eklemek için:
+>
+> ```bash
+> id -nG | grep -q video || sudo usermod -aG video "$USER"
+> ```
+>
+> Değişiklik oturumu kapatıp açtıktan sonra geçerli olur.
 
 ## Katkıda Bulunma
 
@@ -148,10 +164,11 @@ Katkılarınız memnuniyetle karşılanır! Lütfen aşağıdaki adımları izle
 ```bash
 git clone https://github.com/Jaeger0000/casper_excalibur_keyboard_rgb_linux.git
 cd casper_excalibur_keyboard_rgb_linux
-pip install -e .
-make test     # Testleri çalıştır
-make lint     # Kod kalitesi kontrolü
-make run      # Uygulamayı başlat
+make install-dev   # pip install -e ".[dev]" – test ve lint araçlarıyla
+make test          # Testleri çalıştır
+make lint          # flake8 + mypy
+make run           # Uygulamayı başlat
+make -C driver     # Kernel modülünü derle (linux-headers gerekir)
 ```
 
 ## Sorun Bildirme

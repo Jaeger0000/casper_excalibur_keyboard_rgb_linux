@@ -9,12 +9,19 @@ on:
 jobs:
   test-ubuntu:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # requires-python is ">=3.10", so test the oldest and newest
+        # interpreters that claim to be supported, not just one.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.12
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: ${{ matrix.python-version }}
+        cache: pip
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -22,8 +29,10 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .
-        pip install pytest pytest-qt flake8 mypy
+        pip install -e ".[dev]"
+    - name: Lint
+      run: |
+        make lint
     - name: Run Tests
       run: |
         xvfb-run make test
@@ -45,15 +54,27 @@ jobs:
       run: |
         . .venv/bin/activate
         python -m pip install --upgrade pip
-        pip install -e .
-        pip install pytest pytest-qt flake8 mypy
+        pip install -e ".[dev]"
     - name: Run Tests
       run: |
         . .venv/bin/activate
         xvfb-run make test
 
+  build-driver:
+    # The DKMS module is shipped by every package; a syntax or API error in
+    # it only surfaced on a user's machine at install time before this.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install kernel headers and build tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential "linux-headers-$(uname -r)"
+    - name: Build casper-wmi
+      run: make -C driver
+
   release:
-    needs: [test-ubuntu, test-archlinux]
+    needs: [test-ubuntu, test-archlinux, build-driver]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -87,15 +108,26 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ steps.semantic.outputs.tag }}
 
-    - name: Update PKGBUILD
+    - name: Update PKGBUILD and .SRCINFO
       if: steps.semantic.outputs.released == 'true'
       env:
         NEW_VERSION: ${{ steps.semantic.outputs.version }}
       run: |
-        ./update_pkgbuild.sh $NEW_VERSION
+        ./update_pkgbuild.sh "$NEW_VERSION"
+
+        # .SRCINFO is generated here rather than only inside the AUR repo,
+        # so the copy tracked in this repository cannot drift out of sync
+        # with PKGBUILD the way it did before.
+        docker run --rm -v "$PWD":/pkg -w /pkg archlinux:latest bash -c \
+          "pacman -Sy --noconfirm base-devel >/dev/null && \
+           chown -R nobody:nobody /pkg && \
+           sudo -u nobody makepkg --printsrcinfo > /tmp/.SRCINFO && \
+           cp /tmp/.SRCINFO /pkg/.SRCINFO"
+        sudo chown "$USER:$USER" .SRCINFO
+
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add PKGBUILD
+        git add PKGBUILD .SRCINFO
         if ! git diff-index --quiet HEAD; then
           git commit -m "chore(pkgbuild): update to v$NEW_VERSION [skip ci]"
           git push origin HEAD:main
@@ -127,17 +159,10 @@ jobs:
         # Clone AUR repo
         git clone ssh://aur@aur.archlinux.org/casper-keyboard-rgb.git aur_repo
 
-        # Copy updated files to AUR repo
-        cp PKGBUILD aur_repo/
-        cp casper-keyboard-rgb.install aur_repo/
-
-        # Generate SRCINFO in an Arch Linux container logic (since we are on Ubuntu)
-        # However, to generate .SRCINFO correctly, we need makepkg which is Arch specific.
-        # We will use an Arch Linux Docker container just for generating .SRCINFO
-        docker run --rm -v $PWD/aur_repo:/pkg -w /pkg archlinux:latest bash -c "pacman -Sy --noconfirm sudo git base-devel && chown -R nobody:nobody /pkg && sudo -u nobody makepkg --printsrcinfo > .SRCINFO"
-
-        # Change ownership back to runner user
-        sudo chown -R $USER:$USER aur_repo
+        # Copy updated files to AUR repo.  .SRCINFO was already regenerated
+        # from this PKGBUILD in the previous step, so it is copied rather
+        # than built a second time.
+        cp PKGBUILD casper-keyboard-rgb.install .SRCINFO aur_repo/
 
         # Commit and push to AUR
         cd aur_repo

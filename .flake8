@@ -1,0 +1,12 @@
+[flake8]
+# The codebase uses descriptive Turkish error messages and box-drawing
+# section headers; 79 columns is unrealistic for it.
+max-line-length = 100
+extend-exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    .venv,
+    venv,
+    deb-build

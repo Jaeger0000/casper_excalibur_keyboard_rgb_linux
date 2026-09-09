@@ -1,4 +1,4 @@
-.PHONY: run install install-system clean test lint deb
+.PHONY: run install install-dev install-system clean test lint deb aur-build
 
 # ── Development ──────────────────────────────
 
@@ -16,6 +16,9 @@ lint:
 
 install:
 	pip install -e .
+
+install-dev:
+	pip install -e ".[dev]"
 
 install-system:
 	@echo "Installing system files (requires root)..."
