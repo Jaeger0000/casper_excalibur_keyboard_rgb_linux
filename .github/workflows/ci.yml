@@ -118,12 +118,22 @@ jobs:
         # .SRCINFO is generated here rather than only inside the AUR repo,
         # so the copy tracked in this repository cannot drift out of sync
         # with PKGBUILD the way it did before.
-        docker run --rm -v "$PWD":/pkg -w /pkg archlinux:latest bash -c \
-          "pacman -Sy --noconfirm base-devel >/dev/null && \
-           chown -R nobody:nobody /pkg && \
-           sudo -u nobody makepkg --printsrcinfo > /tmp/.SRCINFO && \
-           cp /tmp/.SRCINFO /pkg/.SRCINFO"
-        sudo chown "$USER:$USER" .SRCINFO
+        #
+        # makepkg ships with pacman and is already in the base image, so no
+        # packages are installed; it only refuses to run as root, hence the
+        # privilege drop.  A throwaway directory is mounted so the checkout
+        # is never chown'd out from under the subsequent git commands, and
+        # stdout is captured on the host so the file belongs to the runner.
+        mkdir -p /tmp/srcinfo
+        cp PKGBUILD casper-keyboard-rgb.install /tmp/srcinfo/
+        docker run --rm -v /tmp/srcinfo:/pkg -w /pkg archlinux:latest bash -c \
+          'chown -R nobody /pkg && setpriv --reuid=nobody --regid=nobody --clear-groups makepkg --printsrcinfo' \
+          > .SRCINFO
+
+        # Never commit an empty or stale .SRCINFO – that is what leaves the
+        # AUR package unusable.
+        test -s .SRCINFO
+        grep -q "pkgver = ${NEW_VERSION}$" .SRCINFO
 
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
