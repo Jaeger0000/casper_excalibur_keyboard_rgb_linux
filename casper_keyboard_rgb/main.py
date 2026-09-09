@@ -54,7 +54,11 @@ def _find_user_config_dir() -> Path:
 
 def _restore() -> int:
     """
-    Restore the last-used LED profile.
+    Restore the last applied LED colour.
+
+    Prefers the exact colour last written to the keyboard (which may be an
+    ad-hoc colour that was never saved as a profile) and falls back to the
+    last-loaded named profile.
 
     Designed to be called from the systemd oneshot service at boot.
     Runs without a display server, so no GUI is needed.
@@ -66,21 +70,26 @@ def _restore() -> int:
     logger = logging.getLogger("restore")
 
     pm = ProfileManager(config_dir=_find_user_config_dir())
-    profile = pm.get_last_used()
-    if profile is None:
-        logger.info("Geri yüklenecek profil yok – çıkılıyor.")
+
+    state = pm.get_last_state()
+    source = "son uygulanan renk"
+    if state is None:
+        state = pm.get_last_used()
+        source = f"profil '{pm.get_last_used_name()}'"
+    if state is None:
+        logger.info("Geri yüklenecek kayıtlı renk yok – çıkılıyor.")
         return 0
 
     controller = LEDController()  # direct write works as root via systemd
     try:
         controller.set_color(
-            zone=profile.zone,
-            brightness=profile.brightness,
-            color=RGBColor(profile.r, profile.g, profile.b),
+            zone=state.zone,
+            brightness=state.brightness,
+            color=RGBColor(state.r, state.g, state.b),
         )
-        logger.info("Profil geri yüklendi: %s", pm.get_last_used_name())
+        logger.info("Geri yüklendi (%s)", source)
     except LEDControllerError as exc:
-        logger.error("Profil geri yüklenemedi: %s", exc)
+        logger.error("Renk geri yüklenemedi: %s", exc)
         return 1
     return 0
 
@@ -108,7 +117,7 @@ def main() -> int:
     parser.add_argument(
         "--restore",
         action="store_true",
-        help="Son kullanılan profili geri yükle (systemd servisi için)",
+        help="Son uygulanan rengi geri yükle (systemd servisi için)",
     )
     parser.add_argument(
         "-v", "--verbose",

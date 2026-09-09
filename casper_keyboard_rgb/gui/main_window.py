@@ -5,12 +5,10 @@ Main application window.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
-from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QColor, QIcon
+from PyQt6.QtCore import QSize
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QApplication,
     QComboBox,
     QGroupBox,
     QHBoxLayout,
@@ -29,7 +27,7 @@ from casper_keyboard_rgb.core.profiles import ProfileManager
 from casper_keyboard_rgb.gui.brightness_slider import BrightnessSlider
 from casper_keyboard_rgb.gui.color_picker import ColorPicker
 from casper_keyboard_rgb.gui.zone_selector import ZoneSelector
-from casper_keyboard_rgb.utils.permission_handler import run_preflight_checks
+from casper_keyboard_rgb.utils.permission_handler import describe_blocking_problems
 from casper_keyboard_rgb.utils.validator import validate_profile_name
 
 logger = logging.getLogger(__name__)
@@ -249,22 +247,40 @@ class MainWindow(QMainWindow):
 
         try:
             self._controller.set_color(zone=zone, brightness=brightness, color=rgb)
-            self._status.showMessage(
-                f"Uygulandı: {zone} | #{rgb.to_hex()} | Parlaklık {brightness}"
-            )
         except LEDControllerError as exc:
             logger.exception("LED ayarlanamadı")
             QMessageBox.critical(self, "Hata", str(exc))
+            return
         except ValueError as exc:
             QMessageBox.warning(self, "Geçersiz Değer", str(exc))
+            return
+
+        self._remember_state(zone, brightness, rgb)
+        self._status.showMessage(
+            f"Uygulandı: {zone} | #{rgb.to_hex()} | Parlaklık {brightness}"
+        )
 
     def _on_turn_off(self) -> None:
         try:
             self._controller.turn_off()
-            self._status.showMessage("LED'ler kapatıldı")
         except LEDControllerError as exc:
             logger.exception("LED kapatılamadı")
             QMessageBox.critical(self, "Hata", str(exc))
+            return
+
+        self._remember_state("all", 0, RGBColor(0, 0, 0))
+        self._status.showMessage("LED'ler kapatıldı")
+
+    def _remember_state(self, zone: str, brightness: int, color: RGBColor) -> None:
+        """
+        Persist what is currently on the keyboard so ``--restore`` (and the
+        boot service) can put it back.  A failure here must never block the
+        colour change that already succeeded.
+        """
+        try:
+            self._profile_mgr.set_last_state(zone, brightness, color)
+        except (OSError, ValueError):
+            logger.warning("Son durum kaydedilemedi", exc_info=True)
 
     def _populate_profiles(self) -> None:
         self._profile_combo.clear()
@@ -286,6 +302,10 @@ class MainWindow(QMainWindow):
         self._color_picker.color = QColor(p.r, p.g, p.b)
         self._brightness.brightness = p.brightness
         self._zone_selector.zone = p.zone
+        try:
+            self._profile_mgr.set_last_used(name)
+        except OSError:
+            logger.warning("Son kullanılan profil kaydedilemedi", exc_info=True)
         self._status.showMessage(f"Profil yüklendi: {name}")
 
     def _on_save_profile(self) -> None:
@@ -302,12 +322,18 @@ class MainWindow(QMainWindow):
         color = self._color_picker.color
         rgb = RGBColor(color.red(), color.green(), color.blue())
 
-        self._profile_mgr.save_profile(
-            name=name,
-            zone=self._zone_selector.zone,
-            brightness=self._brightness.brightness,
-            color=rgb,
-        )
+        try:
+            self._profile_mgr.save_profile(
+                name=name,
+                zone=self._zone_selector.zone,
+                brightness=self._brightness.brightness,
+                color=rgb,
+            )
+        except (OSError, ValueError) as exc:
+            logger.exception("Profil kaydedilemedi")
+            QMessageBox.critical(self, "Hata", f"Profil kaydedilemedi:\n{exc}")
+            return
+
         self._populate_profiles()
         # Select the newly saved profile
         idx = self._profile_combo.findText(name)
@@ -327,20 +353,30 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            self._profile_mgr.delete_profile(name)
+            try:
+                self._profile_mgr.delete_profile(name)
+            except OSError as exc:
+                logger.exception("Profil silinemedi")
+                QMessageBox.critical(self, "Hata", f"Profil silinemedi:\n{exc}")
+                return
             self._populate_profiles()
             self._status.showMessage(f"Profil silindi: {name}")
 
     # ── Preflight ─────────────────────────────
 
     def _run_preflight(self) -> None:
-        """Show warnings for missing prerequisites."""
-        results = run_preflight_checks()
-        warnings = [msg for ok, msg in results if not ok]
-        if warnings:
-            detail = "\n\n".join(warnings)
+        """
+        Warn only when the keyboard cannot actually be controlled.
+
+        The udev rule and the Polkit helper are two independent ways to
+        reach the LED file; a working setup needs one of them, not both.
+        Warning about the missing one turned a healthy install into a
+        scary popup on every launch.
+        """
+        problems = describe_blocking_problems()
+        if problems:
             QMessageBox.warning(
                 self,
                 "Uyarı",
-                "Bazı bileşenler eksik veya düzgün yapılandırılmamış:\n\n" + detail,
+                "Klavye LED'leri kontrol edilemiyor:\n\n" + "\n\n".join(problems),
             )
