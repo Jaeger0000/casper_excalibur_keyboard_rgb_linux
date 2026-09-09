@@ -44,6 +44,15 @@ class LEDControllerError(Exception):
     """Base exception for LED control failures."""
 
 
+class LEDPermissionError(LEDControllerError):
+    """
+    Raised when the LED control file exists but cannot be written to.
+
+    This is the one failure the Polkit helper can recover from, so it has
+    its own type instead of being detected by matching on message text.
+    """
+
+
 class LEDController:
     """
     Controls Casper keyboard LEDs via the casper-wmi sysfs interface.
@@ -143,14 +152,14 @@ class LEDController:
         """Write the command string to the LED control file.
 
         Strategy: try direct write first (fast, no popup).
-        If permission denied, fall back to the Polkit helper.
+        Only a :class:`LEDPermissionError` falls back to the Polkit helper;
+        every other failure (missing driver, unsafe path) is fatal and is
+        re-raised so the user gets the real reason.
         """
         try:
             self._write_direct(command)
             return
-        except LEDControllerError as direct_err:
-            if "yazma yetkisi" not in str(direct_err):
-                raise  # not a permission issue – re-raise immediately
+        except LEDPermissionError as direct_err:
             logger.debug("Doğrudan yazma başarısız, helper deneniyor: %s", direct_err)
 
         self._write_via_helper(command)
@@ -209,7 +218,7 @@ class LEDController:
             with open(path, "w") as fp:
                 fp.write(command)
         except PermissionError as exc:
-            raise LEDControllerError(
+            raise LEDPermissionError(
                 "Doğrudan yazma yetkisi yok. "
                 "Programı root olarak çalıştırın veya helper modunu kullanın."
             ) from exc

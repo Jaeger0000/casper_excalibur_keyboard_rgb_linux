@@ -12,8 +12,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from casper_keyboard_rgb.core.config import ZONE_LABELS
-
 # Display label → internal key
 _DISPLAY_MAP: dict[str, str] = {
     "Tümü": "all",
@@ -21,8 +19,6 @@ _DISPLAY_MAP: dict[str, str] = {
     "Orta": "center",
     "Sağ": "right",
 }
-
-_REVERSE_MAP: dict[str, str] = {v: k for k, v in _DISPLAY_MAP.items()}
 
 
 class ZoneSelector(QWidget):

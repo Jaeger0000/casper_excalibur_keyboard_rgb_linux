@@ -69,10 +69,44 @@ def check_helper_installed() -> tuple[bool, str]:
     return True, "Yardımcı betik kurulu."
 
 
-def run_preflight_checks() -> list[tuple[bool, str]]:
-    """Run all preflight checks and return results."""
-    return [
-        check_driver_loaded(),
-        check_pkexec_available(),
-        check_helper_installed(),
-    ]
+def check_direct_write_allowed() -> tuple[bool, str]:
+    """Check whether the LED control file is writable without escalation."""
+    if not os.access(LED_CONTROL_PATH, os.W_OK):
+        return False, (
+            f"{LED_CONTROL_PATH} dosyasına yazma izniniz yok.\n"
+            "Udev kuralı kurulu mu ve kullanıcınız 'video' grubunda mı?\n"
+            "Eklemek için: sudo usermod -aG video $USER (ardından yeniden oturum açın)"
+        )
+    return True, "LED dosyasına doğrudan yazılabiliyor."
+
+
+def describe_blocking_problems() -> list[str]:
+    """
+    Return only the problems that actually prevent LED control.
+
+    The driver must be present.  Beyond that there are two independent
+    ways to write to the LED file – a udev rule that makes it directly
+    writable, or pkexec plus the helper script – and one of them is
+    enough, so a missing helper is not reported while direct writes work.
+    """
+    problems: list[str] = []
+
+    driver_ok, driver_msg = check_driver_loaded()
+    if not driver_ok:
+        return [driver_msg]
+
+    direct_ok, direct_msg = check_direct_write_allowed()
+    if direct_ok:
+        return problems
+
+    helper_ok, helper_msg = check_helper_installed()
+    pkexec_ok, pkexec_msg = check_pkexec_available()
+    if helper_ok and pkexec_ok:
+        return problems
+
+    problems.append(direct_msg)
+    if not pkexec_ok:
+        problems.append(pkexec_msg)
+    if not helper_ok:
+        problems.append(helper_msg)
+    return problems

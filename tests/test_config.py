@@ -1,5 +1,7 @@
 """Tests for src.core.config – RGBColor and validation helpers."""
 
+import os
+
 import pytest
 
 from casper_keyboard_rgb.core.config import RGBColor, validate_led_path
@@ -73,6 +75,23 @@ class TestValidateLedPath:
         with pytest.raises(PermissionError, match="/sys/"):
             validate_led_path(str(fake))
 
+    def test_rejects_path_outside_leds_class(self):
+        """Only files addressed through /sys/class/leds/ are accepted."""
+        with pytest.raises(PermissionError):
+            validate_led_path("/sys/kernel/debug/anything")
+
     def test_rejects_nonexistent(self):
         with pytest.raises(PermissionError):
             validate_led_path("/tmp/nonexistent_led_path_xyz")
+
+    def test_missing_led_reports_not_found(self):
+        """A correctly addressed but absent LED means the driver is missing."""
+        with pytest.raises(FileNotFoundError):
+            validate_led_path("/sys/class/leds/no_such_led_xyz/led_control")
+
+    def test_accepts_real_led_control_file(self):
+        """On a machine with the driver loaded the real path must validate."""
+        path = "/sys/class/leds/casper::kbd_backlight/led_control"
+        if not os.path.exists(path):
+            pytest.skip("casper-wmi sürücüsü bu makinede yüklü değil")
+        assert validate_led_path(path).startswith("/sys/")

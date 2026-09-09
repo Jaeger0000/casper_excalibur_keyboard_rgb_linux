@@ -4,8 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from casper_keyboard_rgb.main import _find_user_config_dir
 
 

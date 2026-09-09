@@ -65,8 +65,10 @@ BRIGHTNESS_LABELS: Final[dict[int, str]] = {
 # ──────────────────────────────────────────────
 LED_CONTROL_PATH: Final[str] = "/sys/class/leds/casper::kbd_backlight/led_control"
 
-# Allowed parent directory – used for path validation
+# The LED control file must be addressed through this directory …
 _ALLOWED_SYSFS_PREFIX: Final[str] = "/sys/class/leds/"
+# … and must still resolve to somewhere inside sysfs after symlinks.
+_SYSFS_ROOT: Final[str] = "/sys/"
 
 
 # ──────────────────────────────────────────────
@@ -74,7 +76,6 @@ _ALLOWED_SYSFS_PREFIX: Final[str] = "/sys/class/leds/"
 # ──────────────────────────────────────────────
 APP_NAME: Final[str] = "casper-keyboard-rgb"
 CONFIG_DIR: Final[Path] = Path.home() / ".config" / APP_NAME
-PROFILES_FILE: Final[Path] = CONFIG_DIR / "profiles.json"
 
 # Polkit action helper script installed by the package
 HELPER_SCRIPT_PATH: Final[str] = "/usr/lib/casper-keyboard-rgb/led-write-helper"
@@ -124,21 +125,33 @@ def validate_led_path(path: str) -> str:
     """
     Validate that *path* is a safe sysfs LED control file.
 
+    The path must be addressed through ``/sys/class/leds/`` and must still
+    resolve inside sysfs once symlinks are followed.  Existence is checked
+    before the symlink check so that a missing driver reports "not found"
+    rather than the misleading "outside /sys/".
+
     Raises:
         FileNotFoundError: if the path does not exist.
         PermissionError: if the resolved path escapes the allowed prefix.
     """
-    resolved = os.path.realpath(path)  # resolve all symlinks
-
-    # Must still reside under /sys/ after resolving
-    if not resolved.startswith("/sys/"):
+    if not path.startswith(_ALLOWED_SYSFS_PREFIX):
         raise PermissionError(
-            f"LED kontrol dosyası /sys/ dışına işaret ediyor: {resolved}"
+            f"LED kontrol dosyası {_ALLOWED_SYSFS_PREFIX} altında değil: {path}"
         )
+
+    resolved = os.path.realpath(path)  # resolve all symlinks
 
     if not os.path.exists(resolved):
         raise FileNotFoundError(
             f"LED kontrol dosyası bulunamadı: {resolved}"
+        )
+
+    # A symlink must not lead out of sysfs.  The class directory is itself
+    # a symlink farm, so the resolved path lands under /sys/devices/… –
+    # only the sysfs root can be required here.
+    if not resolved.startswith(_SYSFS_ROOT):
+        raise PermissionError(
+            f"LED kontrol dosyası /sys/ dışına işaret ediyor: {resolved}"
         )
 
     return resolved

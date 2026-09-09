@@ -5,7 +5,11 @@ import re
 import pytest
 
 from casper_keyboard_rgb.core.config import Brightness, RGBColor, Zone
-from casper_keyboard_rgb.core.led_controller import LEDController
+from casper_keyboard_rgb.core.led_controller import (
+    LEDController,
+    LEDControllerError,
+    LEDPermissionError,
+)
 
 
 class TestBuildCommand:
@@ -77,3 +81,60 @@ class TestResolveBrightness:
     def test_invalid_negative(self):
         with pytest.raises(ValueError, match="Parlaklık"):
             LEDController._resolve_brightness(-1)
+
+
+class TestWriteFallback:
+    """Direct write vs. Polkit helper selection."""
+
+    def test_permission_error_falls_back_to_helper(self, monkeypatch):
+        """A permission problem is the one case the helper can fix."""
+        controller = LEDController(led_path="/sys/class/leds/fake/led_control")
+        calls: list[str] = []
+
+        def deny(_command: str) -> None:
+            raise LEDPermissionError("Doğrudan yazma yetkisi yok.")
+
+        monkeypatch.setattr(controller, "_write_direct", deny)
+        monkeypatch.setattr(controller, "_write_via_helper", calls.append)
+
+        controller._write("602FF0000")
+        assert calls == ["602FF0000"]
+
+    def test_other_errors_do_not_reach_the_helper(self, monkeypatch):
+        """A missing driver must surface, not trigger a pointless auth prompt."""
+        controller = LEDController(led_path="/sys/class/leds/fake/led_control")
+        calls: list[str] = []
+
+        def missing(_command: str) -> None:
+            raise LEDControllerError("LED kontrol dosyası bulunamadı")
+
+        monkeypatch.setattr(controller, "_write_direct", missing)
+        monkeypatch.setattr(controller, "_write_via_helper", calls.append)
+
+        with pytest.raises(LEDControllerError, match="bulunamadı"):
+            controller._write("602FF0000")
+        assert calls == []
+
+    def test_fallback_does_not_depend_on_message_wording(self, monkeypatch):
+        """Rewording the error text must not silently disable the fallback."""
+        controller = LEDController(led_path="/sys/class/leds/fake/led_control")
+        calls: list[str] = []
+
+        def deny(_command: str) -> None:
+            raise LEDPermissionError("permission denied")
+
+        monkeypatch.setattr(controller, "_write_direct", deny)
+        monkeypatch.setattr(controller, "_write_via_helper", calls.append)
+
+        controller._write("602FF0000")
+        assert calls == ["602FF0000"]
+
+    def test_direct_write_success_skips_helper(self, monkeypatch):
+        controller = LEDController(led_path="/sys/class/leds/fake/led_control")
+        calls: list[str] = []
+
+        monkeypatch.setattr(controller, "_write_direct", lambda cmd: None)
+        monkeypatch.setattr(controller, "_write_via_helper", calls.append)
+
+        controller._write("602FF0000")
+        assert calls == []
