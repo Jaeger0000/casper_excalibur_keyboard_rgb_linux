@@ -8,6 +8,8 @@ Security notes
 - All values loaded from disk are re-validated before use.
 - An ``fcntl`` advisory lock prevents concurrent writes from multiple
   GUI instances or the systemd restore service.
+- A corrupt JSON file is moved aside to ``profiles.json.bak`` instead of
+  being silently overwritten, so user data is never lost without a copy.
 """
 
 from __future__ import annotations
@@ -25,7 +27,6 @@ from casper_keyboard_rgb.core.config import (
     CONFIG_DIR,
     MAX_BRIGHTNESS,
     MIN_BRIGHTNESS,
-    PROFILES_FILE,
     RGBColor,
     ZONE_LABELS,
 )
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────
 # Data model
 # ──────────────────────────────────────────────
+
 
 @dataclass(frozen=True, slots=True)
 class Profile:
@@ -76,6 +78,7 @@ _DEFAULTS: dict[str, dict] = {
 # ──────────────────────────────────────────────
 # Profile manager
 # ──────────────────────────────────────────────
+
 
 class ProfileManager:
     """
@@ -138,9 +141,10 @@ class ProfileManager:
         """Return the last-applied profile, or None."""
         data = self._read()
         last = data.get("last_used")
-        if last and last in (data.get("profiles") or {}):
+        profiles = data.get("profiles") or {}
+        if last and last in profiles:
             try:
-                return Profile(**data["profiles"][last])
+                return Profile(**profiles[last])
             except (TypeError, ValueError):
                 return None
         return None
@@ -149,6 +153,40 @@ class ProfileManager:
         """Return the name of the last-applied profile, or None."""
         data = self._read()
         return data.get("last_used")
+
+    def set_last_state(
+        self,
+        zone: str,
+        brightness: int,
+        color: RGBColor,
+    ) -> None:
+        """
+        Record the exact colour state that was last applied to the keyboard.
+
+        Unlike :meth:`set_last_used` this does not require the colour to be
+        a saved profile, so an ad-hoc colour picked in the GUI can still be
+        restored at boot by ``casper-keyboard-rgb --restore``.
+        """
+        state = Profile(
+            zone=zone,
+            brightness=brightness,
+            r=color.r,
+            g=color.g,
+            b=color.b,
+        )
+        with self._locked_update() as data:
+            data["last_state"] = asdict(state)
+
+    def get_last_state(self) -> Optional[Profile]:
+        """Return the last applied colour state, or None."""
+        raw = self._read().get("last_state")
+        if not isinstance(raw, dict):
+            return None
+        try:
+            return Profile(**raw)
+        except (TypeError, ValueError) as exc:
+            logger.warning("Kayıtlı son durum geçersiz, yok sayılıyor: %s", exc)
+            return None
 
     # ── private helpers ───────────────────────
 
@@ -162,20 +200,80 @@ class ProfileManager:
 
         if not self._profiles_file.exists():
             try:
-                initial = {"profiles": _DEFAULTS, "last_used": None}
+                initial = {"profiles": _DEFAULTS, "last_used": None, "last_state": None}
                 self._write_atomic(initial)
                 logger.info("Varsayılan profiller oluşturuldu: %s", self._profiles_file)
             except OSError as exc:
                 logger.warning("Varsayılan profiller yazılamadı: %s", exc)
 
+    @staticmethod
+    def _empty_store() -> dict:
+        """Return a well-formed, empty store."""
+        return {"profiles": {}, "last_used": None, "last_state": None}
+
+    @staticmethod
+    def _default_store() -> dict:
+        """Return a store seeded with the built-in profiles."""
+        return {
+            "profiles": dict(_DEFAULTS),
+            "last_used": None,
+            "last_state": None,
+        }
+
     def _read(self) -> dict:
-        """Read and parse the JSON file."""
+        """
+        Read and parse the JSON file.
+
+        Always returns a dict that has the expected top-level keys, so
+        callers can index ``data["profiles"]`` without a KeyError even when
+        the file on disk is truncated, hand-edited or written by an older
+        version of the application.
+        """
         try:
             text = self._profiles_file.read_text(encoding="utf-8")
-            return json.loads(text)
+            data = json.loads(text)
+        except FileNotFoundError:
+            return self._empty_store()
         except (json.JSONDecodeError, OSError) as exc:
             logger.error("Profil dosyası okunamadı: %s", exc)
-            return {"profiles": {}, "last_used": None}
+            return self._recover_from_corrupt_file()
+
+        if not isinstance(data, dict):
+            logger.error(
+                "Profil dosyası beklenen biçimde değil (%s), yok sayılıyor.",
+                type(data).__name__,
+            )
+            return self._recover_from_corrupt_file()
+
+        # Fill in any missing top-level keys without discarding what is there.
+        store = self._empty_store()
+        if isinstance(data.get("profiles"), dict):
+            store["profiles"] = data["profiles"]
+        elif "profiles" in data:
+            logger.warning("'profiles' alanı sözlük değil, yok sayılıyor.")
+        store["last_used"] = data.get("last_used")
+        store["last_state"] = data.get("last_state")
+        return store
+
+    def _recover_from_corrupt_file(self) -> dict:
+        """
+        Move an unreadable profiles file aside and start over from defaults.
+
+        Without the backup, the next write would silently replace the
+        user's profiles with an empty store and the data would be
+        unrecoverable.  Re-seeding the defaults means the application comes
+        back usable instead of showing an empty profile list.
+        """
+        if self._profiles_file.exists():
+            backup = self._profiles_file.with_suffix(".json.bak")
+            try:
+                os.replace(self._profiles_file, backup)
+                logger.warning("Bozuk profil dosyası yedeklendi: %s", backup)
+            except OSError as exc:
+                logger.error("Bozuk profil dosyası yedeklenemedi: %s", exc)
+                return self._empty_store()
+
+        return self._default_store()
 
     def _write_atomic(self, data: dict) -> None:
         """
